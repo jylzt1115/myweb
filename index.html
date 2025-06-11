@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>人形机器人知识问答</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <!-- Tailwind 配置 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6', // 蓝色作为主色调，代表科技感
+                        secondary: '#10B981', // 绿色作为辅助色，代表创新
+                        accent: '#F59E0B', // 橙色作为强调色，用于按钮和交互元素
+                        dark: '#1E293B', // 深色背景
+                        light: '#F8FAFC', // 浅色背景
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .bg-gradient-tech {
+                background: linear-gradient(135deg, #3B82F6 0%, #10B981 100%);
+            }
+
+            .hover-scale {
+                transition: transform 0.3s ease;
+            }
+
+            .hover-scale:hover {
+                transform: scale(1.05);
+            }
+
+            .animate-float {
+                animation: float 3s ease-in-out infinite;
+            }
+
+            @keyframes float {
+                0% {
+                    transform: translateY(0px);
+                }
+
+                50% {
+                    transform: translateY(-10px);
+                }
+
+                100% {
+                    transform: translateY(0px);
+                }
+            }
+            
+            .puzzle-piece {
+                background-size: 300% 300%;
+                cursor: pointer;
+                transition: all 0.2s ease;
+            }
+            
+            .puzzle-piece:hover:not(.empty) {
+                transform: scale(1.02);
+                box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+            }
+            
+            .empty {
+                background-color: rgba(30, 41, 59, 0.3);
+                cursor: default;
+            }
+            
+            /* 移动设备上的触摸友好按钮 */
+            .touch-friendly-btn {
+                min-height: 48px;
+                padding-top: 0.75rem;
+                padding-bottom: 0.75rem;
+                font-size: 1rem;
+            }
+            
+            /* 移动设备上的问题选项 */
+            .question-option {
+                min-height: 56px;
+                padding: 1rem;
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-gradient-to-br from-slate-900 to-slate-800 text-light min-h-screen">
+    <!-- 导航栏 -->
+    <nav class="fixed w-full z-50 bg-dark/80 backdrop-blur-md">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fa fa-robot text-accent text-2xl"></i>
+                <h1 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">人形机器人知识问答</h1>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 游戏容器 -->
+    <div id="game-container" class="min-h-screen flex items-center justify-center pt-16 pb-8">
+        <div class="container mx-auto px-4">
+            <!-- 欢迎屏幕 -->
+            <div id="welcome-screen" class="text-center">
+                <div class="mb-8">
+                    <i class="fa fa-robot text-accent text-6xl mb-4 animate-float"></i>
+                    <h2 class="text-[clamp(1.5rem,5vw,3rem)] font-bold mb-4">人形机器人知识问答</h2>
+                    <p class="text-lg mb-8 max-w-2xl mx-auto text-slate-300">测试你对人形机器人的了解程度，回答10个问题，看看你能得多少分！</p>
+                </div>
+
+                <button id="start-game-btn" class="bg-accent hover:bg-accent/90 text-dark font-bold touch-friendly-btn rounded-lg hover-scale flex items-center justify-center mx-auto w-full max-w-xs">
+                    <i class="fa fa-play-circle mr-2"></i> 开始游戏
+                </button>
+
+                <button id="start-puzzle-btn" class="bg-accent hover:bg-accent/90 text-dark font-bold touch-friendly-btn rounded-lg hover-scale flex items-center justify-center mx-auto mt-4 w-full max-w-xs">
+                    <i class="fa fa-puzzle-piece mr-2"></i> 开始拼图游戏
+                </button>
+
+                <div id="high-score-container" class="mt-8 text-slate-300 hidden">
+                    <p>你的最高分: <span class="text-accent font-bold" id="high-score">0/100</span></p>
+                </div>
+            </div>
+
+            <!-- 问题屏幕 (默认隐藏) -->
+            <div id="question-screen" class="hidden">
+                <div class="bg-dark/60 backdrop-blur-sm rounded-2xl p-6 md:p-8 border border-slate-700 max-w-3xl mx-auto">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-xl font-bold">问题 <span id="question-number">1</span></h3>
+                        <div class="flex items-center">
+                            <i class="fa fa-star text-accent mr-1"></i>
+                            <span id="current-score">0</span>
+                        </div>
+                    </div>
+
+                    <div class="mb-8">
+                        <h4 class="text-xl font-bold mb-4" id="question-text">问题将在这里显示</h4>
+                        <div id="options-container" class="space-y-3">
+                            <!-- 选项将通过JavaScript动态生成 -->
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between">
+                        <button id="skip-question-btn" class="bg-transparent border-2 border-slate-600 hover:bg-slate-600/20 text-slate-300 font-medium touch-friendly-btn rounded-lg transition-colors flex-1 mr-2">
+                            跳过问题
+                        </button>
+                        <button id="next-question-btn" class="bg-primary hover:bg-primary/90 text-white font-medium touch-friendly-btn rounded-lg transition-colors flex-1 ml-2 hidden">
+                            下一个问题
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 结果屏幕 (默认隐藏) -->
+            <div id="result-screen" class="hidden text-center">
+                <div class="bg-dark/60 backdrop-blur-sm rounded-2xl p-6 md:p-8 border border-slate-700 max-w-2xl mx-auto">
+                    <div class="mb-6">
+                        <div class="w-24 h-24 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i class="fa fa-trophy text-4xl text-primary"></i>
+                        </div>
+                        <h3 class="text-2xl font-bold mb-2">游戏结束！</h3>
+                        <p class="text-slate-300 mb-6">你完成了所有问题，看看你的得分！</p>
+                    </div>
+
+                    <div class="bg-dark/40 rounded-xl p-6 mb-8">
+                        <h4 class="text-xl font-bold mb-2">最终得分</h4>
+                        <div class="text-5xl font-bold text-accent mb-2" id="final-score">0</div>
+                        <div class="text-sm text-slate-400">满分: 100</div>
+                    </div>
+
+                    <button id="play-again-btn" class="bg-accent hover:bg-accent/90 text-dark font-bold touch-friendly-btn rounded-lg hover-scale w-full max-w-xs">
+                        再玩一次
+                    </button>
+                </div>
+            </div>
+
+            <!-- 拼图游戏屏幕 (默认隐藏) -->
+            <div id="puzzle-screen" class="hidden text-center">
+                <div class="bg-dark/60 backdrop-blur-sm rounded-2xl p-6 md:p-8 border border-slate-700 max-w-3xl mx-auto">
+                    <h3 class="text-xl font-bold mb-4">拼图游戏</h3>
+                    
+                    <!-- 图片上传区域 -->
+                    <div class="mb-6">
+                        <label for="image-upload" class="block text-slate-300 mb-2">选择图片</label>
+                        <div class="flex items-center justify-center">
+                            <div class="relative w-full max-w-md">
+                                <input type="file" id="image-upload" accept="image/*" class="hidden">
+                                <button id="upload-btn" class="w-full bg-primary/20 hover:bg-primary/30 text-white font-medium touch-friendly-btn rounded-lg transition-colors">
+                                    <i class="fa fa-upload mr-2"></i> 上传图片
+                                </button>
+                                <div id="image-preview-container" class="mt-4 hidden">
+                                    <img id="image-preview" src="" alt="图片预览" class="w-full h-auto rounded-lg border border-slate-700">
+                                    <button id="use-image-btn" class="mt-2 w-full bg-accent hover:bg-accent/90 text-dark font-medium touch-friendly-btn rounded-lg transition-colors">
+                                        使用此图片
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="puzzle-container" class="flex flex-wrap justify-center w-full max-w-md mx-auto"></div>
+                    <button id="reset-puzzle-btn" class="bg-accent hover:bg-accent/90 text-dark font-bold touch-friendly-btn rounded-lg hover-scale mt-4 w-full max-w-xs">
+                        重置拼图
+                    </button>
+                </div>
+            </div>
+
+            <!-- 视频播放屏幕 (默认隐藏) -->
+            <div id="video-screen" class="hidden text-center">
+                <div class="bg-dark/60 backdrop-blur-sm rounded-2xl p-6 md:p-8 border border-slate-700 max-w-3xl mx-auto">
+                    <h3 class="text-xl font-bold mb-4">恭喜你，拼图成功！观看视频奖励</h3>
+                    <div class="relative aspect-video bg-slate-800 rounded-lg overflow-hidden">
+                        <video id="reward-video" class="w-full h-full object-cover" controls playsinline>
+                            <source src="myweb/robot_video.mp4" type="video/mp4">
+                            你的浏览器不支持视频播放。
+                        </video>
+                    </div>
+                    <button id="back-to-welcome-btn" class="bg-accent hover:bg-accent/90 text-dark font-bold touch-friendly-btn rounded-lg hover-scale mt-4 w-full max-w-xs">
+                        返回欢迎页面
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        // 游戏数据
+        const gameData = {
+            scores: {
+                current: 0,
+                high: localStorage.getItem('robotQuizHighScore') || 0
+            },
+            quiz: {
+                currentQuestion: 0,
+                questions: [
+                    {
+                        question: "世界上第一个被认证为公民的机器人是什么名字？",
+                        options: ["索菲亚", "阿西莫", "波士顿动力狗", "擎天柱"],
+                        answer: 0,
+                        explanation: "索菲亚(Sophia)是世界上第一个被认证为公民的机器人，她由香港的汉森机器人技术公司开发。"
+                    },
+                    {
+                        question: "人形机器人的主要特点是什么？",
+                        options: ["能模仿人类的形态和行为", "能飞行", "只能在水中工作", "不需要能源"],
+                        answer: 0,
+                        explanation: "人形机器人的主要特点是能够模仿人类的形态和行为，通常具有头部、躯干、双臂和双腿。"
+                    },
+                    {
+                        question: "以下哪项不是人形机器人的应用领域？",
+                        options: ["医疗保健", "太空探索", "农业生产", "深海潜水"],
+                        answer: 3,
+                        explanation: "虽然机器人可以用于深海潜水，但目前人形机器人在这个领域的应用相对较少。人形机器人更多地应用于医疗保健、太空探索和农业生产等领域。"
+                    },
+                    {
+                        question: "人形机器人的核心技术不包括以下哪项？",
+                        options: ["人工智能", "量子计算", "传感器技术", "运动控制"],
+                        answer: 1,
+                        explanation: "量子计算目前不是人形机器人的核心技术。人形机器人的核心技术包括人工智能、传感器技术和运动控制等。"
+                    },
+                    {
+                        question: "哪个公司开发了著名的人形机器人阿西莫(ASIMO)？",
+                        options: ["本田", "丰田", "索尼", "特斯拉"],
+                        answer: 0,
+                        explanation: "阿西莫(ASIMO)是由本田公司开发的著名人形机器人，它能够行走、爬楼梯和执行各种任务。"
+                    },
+                    {
+                        question: "人形机器人的主要能源来源是什么？",
+                        options: ["电池", "太阳能", "核能", "水力发电"],
+                        answer: 0,
+                        explanation: "目前，大多数人形机器人使用电池作为主要能源来源。虽然太阳能、核能和水力发电等其他能源形式也可能被使用，但电池是最常见的选择。"
+                    },
+                    {
+                        question: "以下哪种传感器对人形机器人的平衡能力最重要？",
+                        options: ["加速度计", "摄像头", "麦克风", "温度传感器"],
+                        answer: 0,
+                        explanation: "加速度计对人形机器人的平衡能力最重要。它能够测量机器人的加速度和倾斜角度，帮助机器人保持平衡。"
+                    },
+                    {
+                        question: "人形机器人的自由度通常指什么？",
+                        options: ["机器人可以移动的方向数量", "机器人的能源效率", "机器人的计算能力", "机器人的生产成本"],
+                        answer: 0,
+                        explanation: "人形机器人的自由度通常指机器人可以移动的方向数量。例如，一个具有6个自由度的机器人可以在三维空间中进行全方位的移动。"
+                    },
+                    {
+                        question: "以下哪个人形机器人主要用于教育目的？",
+                        options: ["NAO", "Atlas", "Pepper", "Spot"],
+                        answer: 0,
+                        explanation: "NAO是一个主要用于教育目的的人形机器人，它被广泛应用于学校和研究机构，帮助学生学习编程和机器人技术。"
+                    },
+                    {
+                        question: "人形机器人的发展面临的主要挑战不包括以下哪项？",
+                        options: ["能源效率", "人工智能的道德问题", "材料成本", "超音速飞行"],
+                        answer: 3,
+                        explanation: "超音速飞行不是人形机器人发展面临的主要挑战。人形机器人的发展面临的主要挑战包括能源效率、人工智能的道德问题和材料成本等。"
+                    }
+                ]
+            },
+            puzzle: {
+                pieces: [],
+                correctOrder: [],
+                // 修改拼图尺寸为 2x2
+                size: 2,
+                imageUrl: null,
+                imageLoaded: false
+            }
+        };
+
+        // DOM元素
+        const welcomeScreen = document.getElementById('welcome-screen');
+        const questionScreen = document.getElementById('question-screen');
+        const resultScreen = document.getElementById('result-screen');
+        const startGameBtn = document.getElementById('start-game-btn');
+        const questionNumber = document.getElementById('question-number');
+        const currentScore = document.getElementById('current-score');
+        const questionText = document.getElementById('question-text');
+        const optionsContainer = document.getElementById('options-container');
+        const skipQuestionBtn = document.getElementById('skip-question-btn');
+        const nextQuestionBtn = document.getElementById('next-question-btn');
+        const finalScore = document.getElementById('final-score');
+        const playAgainBtn = document.getElementById('play-again-btn');
+        const highScoreContainer = document.getElementById('high-score-container');
+        const highScoreElement = document.getElementById('high-score');
+        const puzzleScreen = document.getElementById('puzzle-screen');
+        const puzzleContainer = document.getElementById('puzzle-container');
+        const resetPuzzleBtn = document.getElementById('reset-puzzle-btn');
+        const videoScreen = document.getElementById('video-screen');
+        const rewardVideo = document.getElementById('reward-video');
+        const backToWelcomeBtn = document.getElementById('back-to-welcome-btn');
+        const startPuzzleBtn = document.getElementById('start-puzzle-btn');
+        const imageUpload = document.getElementById('image-upload');
+        const uploadBtn = document.getElementById('upload-btn');
+        const imagePreviewContainer = document.getElementById('image-preview-container');
+        const imagePreview = document.getElementById('image-preview');
+        const useImageBtn = document.getElementById('use-image-btn');
+
+        // 初始化页面
+        function init() {
+            // 检查是否是新会话
+            const isNewSession = !sessionStorage.getItem('robotQuizSession');
+
+            // 如果是新会话，重置游戏状态
+            if (isNewSession) {
+                resetGameState();
+                // 标记会话
+                sessionStorage.setItem('robotQuizSession', 'active');
+            }
+
+            // 加载最高分
+            if (gameData.scores.high > 0) {
+                highScoreContainer.classList.remove('hidden');
+                highScoreElement.textContent = `${gameData.scores.high}/100`;
+            }
+
+            // 事件监听
+            startGameBtn.addEventListener('click', startGame);
+            skipQuestionBtn.addEventListener('click', goToNextQuestion);
+            nextQuestionBtn.addEventListener('click', goToNextQuestion);
+            playAgainBtn.addEventListener('click', restartGame);
+            startPuzzleBtn.addEventListener('click', startPuzzleGame);
+            resetPuzzleBtn.addEventListener('click', resetPuzzle);
+            backToWelcomeBtn.addEventListener('click', backToWelcome);
+            
+            // 拼图图片上传事件
+            uploadBtn.addEventListener('click', () => imageUpload.click());
+            imageUpload.addEventListener('change', handleImageUpload);
+            useImageBtn.addEventListener('click', useSelectedImage);
+            
+            // 移动设备上的触摸优化
+            if (isMobileDevice()) {
+                document.body.classList.add('mobile-device');
+            }
+        }
+        
+        // 检测是否为移动设备
+        function isMobileDevice() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        }
+
+        // 处理图片上传
+        function handleImageUpload(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    imagePreview.src = event.target.result;
+                    imagePreviewContainer.classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // 使用选择的图片
+        function useSelectedImage() {
+            gameData.puzzle.imageUrl = imagePreview.src;
+            gameData.puzzle.imageLoaded = true;
+            setupPuzzle();
+        }
+
+        // 重置游戏状态
+        function resetGameState() {
+            // 重置游戏数据
+            gameData.quiz.currentQuestion = 0;
+            gameData.scores.current = 0;
+
+            // 更新UI显示
+            currentScore.textContent = 0;
+            questionNumber.textContent = "1";
+
+            // 显示欢迎屏幕，隐藏其他屏幕
+            welcomeScreen.classList.remove('hidden');
+            questionScreen.classList.add('hidden');
+            resultScreen.classList.add('hidden');
+            puzzleScreen.classList.add('hidden');
+            videoScreen.classList.add('hidden');
+            imagePreviewContainer.classList.add('hidden');
+
+            // 清空选项容器
+            optionsContainer.innerHTML = '';
+
+            // 重置按钮状态
+            nextQuestionBtn.classList.add('hidden');
+            skipQuestionBtn.disabled = false;
+            skipQuestionBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            
+            // 重置拼图图片
+            gameData.puzzle.imageUrl = null;
+            gameData.puzzle.imageLoaded = false;
+        }
+
+        // 开始游戏
+        function startGame() {
+            // 重置游戏数据
+            gameData.quiz.currentQuestion = 0;
+            gameData.scores.current = 0;
+            currentScore.textContent = gameData.scores.current;
+
+            // 切换到问题屏幕
+            welcomeScreen.classList.add('hidden');
+            questionScreen.classList.remove('hidden');
+
+            // 加载第一个问题
+            loadQuestion();
+        }
+
+        // 加载问题
+        function loadQuestion() {
+            const currentQuestion = gameData.quiz.questions[gameData.quiz.currentQuestion];
+
+            // 更新问题编号和内容
+            questionNumber.textContent = `${gameData.quiz.currentQuestion + 1}/10`;
+            questionText.textContent = currentQuestion.question;
+
+            // 清空选项容器
+            optionsContainer.innerHTML = '';
+
+            // 生成选项
+            currentQuestion.options.forEach((option, index) => {
+                const optionElement = document.createElement('button');
+                optionElement.className = 'w-full bg-dark/40 hover:bg-primary/20 text-left question-option rounded-lg border border-slate-700 transition-colors';
+                optionElement.textContent = `${String.fromCharCode(65 + index)}. ${option}`;
+                optionElement.addEventListener('click', () => checkAnswer(index));
+
+                optionsContainer.appendChild(optionElement);
+            });
+
+            // 重置按钮状态
+            nextQuestionBtn.classList.add('hidden');
+            skipQuestionBtn.disabled = false;
+            skipQuestionBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+
+        // 检查答案
+        function checkAnswer(selectedIndex) {
+            const currentQuestion = gameData.quiz.questions[gameData.quiz.currentQuestion];
+            const options = optionsContainer.querySelectorAll('button');
+
+            // 禁用所有选项
+            options.forEach(option => {
+                option.disabled = true;
+            });
+
+            // 检查答案是否正确
+            if (selectedIndex === currentQuestion.answer) {
+                // 正确答案
+                options[selectedIndex].classList.add('bg-secondary/30', 'border-secondary');
+                gameData.scores.current += 10;
+                currentScore.textContent = gameData.scores.current;
+            } else {
+                // 错误答案
+                options[selectedIndex].classList.add('bg-red-500/30', 'border-red-500');
+                options[currentQuestion.answer].classList.add('bg-secondary/30', 'border-secondary');
+            }
+
+            // 显示下一个问题按钮，隐藏跳过按钮
+            nextQuestionBtn.classList.remove('hidden');
+            skipQuestionBtn.disabled = true;
+            skipQuestionBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        }
+
+        // 前往下一个问题
+        function goToNextQuestion() {
+            gameData.quiz.currentQuestion++;
+
+            if (gameData.quiz.currentQuestion < gameData.quiz.questions.length) {
+                loadQuestion();
+            } else {
+                // 游戏结束，显示结果
+                questionScreen.classList.add('hidden');
+                resultScreen.classList.remove('hidden');
+
+                finalScore.textContent = gameData.scores.current;
+
+                // 更新最高分
+                if (gameData.scores.current > gameData.scores.high) {
+                    gameData.scores.high = gameData.scores.current;
+                    localStorage.setItem('robotQuizHighScore', gameData.scores.high);
+
+                    // 更新欢迎屏幕上的最高分显示
+                    highScoreContainer.classList.remove('hidden');
+                    highScoreElement.textContent = `${gameData.scores.high}/100`;
+
+                    // 添加高分提示
+                    finalScore.innerHTML += `<span class="ml-2 text-xs bg-accent/20 text-accent px-2 py-1 rounded-full">新高分!</span>`;
+                }
+            }
+        }
+
+        // 重新开始游戏
+        function restartGame() {
+            // 重置游戏数据
+            gameData.quiz.currentQuestion = 0;
+            gameData.scores.current = 0;
+            currentScore.textContent = 0;
+
+            // 切换到欢迎屏幕
+            resultScreen.classList.add('hidden');
+            welcomeScreen.classList.remove('hidden');
+
+            // 不需要重新创建按钮和事件监听器，因为我们已经在初始化时绑定了事件
+        }
+
+        // 开始拼图游戏
+        function startPuzzleGame() {
+            welcomeScreen.classList.add('hidden');
+            puzzleScreen.classList.remove('hidden');
+            
+            // 如果没有选择图片，使用默认图片
+            if (!gameData.puzzle.imageUrl) {
+                // 使用一个默认的机器人图片
+                gameData.puzzle.imageUrl = "https://picsum.photos/seed/robot/600/600";
+                gameData.puzzle.imageLoaded = true;
+            }
+            
+            setupPuzzle();
+        }
+
+        // 设置拼图
+        function setupPuzzle() {
+            const size = gameData.puzzle.size;
+            const totalPieces = size * size;
+            gameData.puzzle.pieces = [];
+            gameData.puzzle.correctOrder = [];
+
+            for (let i = 0; i < totalPieces; i++) {
+                gameData.puzzle.pieces.push(i);
+                gameData.puzzle.correctOrder.push(i);
+            }
+
+            // 打乱拼图
+            shuffleArray(gameData.puzzle.pieces);
+
+            // 清空拼图容器
+            puzzleContainer.innerHTML = '';
+            
+            // 设置拼图容器的样式
+            puzzleContainer.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+            puzzleContainer.style.display = 'grid';
+            puzzleContainer.style.gap = '4px';
+
+            // 创建拼图块
+            gameData.puzzle.pieces.forEach((piece, index) => {
+                const pieceElement = document.createElement('div');
+                
+                // 设置拼图块的基本样式
+                pieceElement.className = 'aspect-square border border-slate-700 rounded-md overflow-hidden';
+                
+                // 如果是最后一个拼图块，设置为空块
+                if (piece === totalPieces - 1) {
+                    pieceElement.classList.add('empty');
+                } else {
+                    // 为非空块添加图片背景
+                    const row = Math.floor(piece / size);
+                    const col = piece % size;
+                    
+                    // 计算背景图片的位置
+                    const bgX = col * 100 / (size - 1);
+                    const bgY = row * 100 / (size - 1);
+                    
+                    // 设置背景图片
+                    pieceElement.style.backgroundImage = `url('${gameData.puzzle.imageUrl}')`;
+                    pieceElement.style.backgroundSize = `${size * 100}% ${size * 100}%`;
+                    pieceElement.style.backgroundPosition = `${bgX}% ${bgY}%`;
+                    
+                    // 添加点击事件
+                    pieceElement.addEventListener('click', () => movePiece(index));
+                }
+                
+                // 添加拼图块到容器
+                puzzleContainer.appendChild(pieceElement);
+            });
+        }
+
+        // 打乱数组
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        // 移动拼图块
+        function movePiece(index) {
+            const size = gameData.puzzle.size;
+            const emptyIndex = gameData.puzzle.pieces.indexOf(size * size - 1);
+            
+            // 检查是否相邻
+            if (isAdjacent(index, emptyIndex, size)) {
+                // 交换拼图块数据
+                [gameData.puzzle.pieces[index], gameData.puzzle.pieces[emptyIndex]] = 
+                [gameData.puzzle.pieces[emptyIndex], gameData.puzzle.pieces[index]];
+                
+                // 更新UI
+                updatePuzzleUI();
+                
+                // 检查是否完成拼图
+                if (isPuzzleComplete()) {
+                    setTimeout(() => {
+                        puzzleScreen.classList.add('hidden');
+                        videoScreen.classList.remove('hidden');
+                        rewardVideo.play();
+                    }, 500);
+                }
+            }
+        }
+
+        // 更新拼图UI
+        function updatePuzzleUI() {
+            const size = gameData.puzzle.size;
+            const totalPieces = size * size;
+            const pieces = puzzleContainer.querySelectorAll('div');
+            
+            gameData.puzzle.pieces.forEach((piece, index) => {
+                const pieceElement = pieces[index];
+                
+                // 如果是最后一个拼图块，设置为空块
+                if (piece === totalPieces - 1) {
+                    pieceElement.classList.add('empty');
+                    pieceElement.style.backgroundImage = 'none';
+                    pieceElement.removeEventListener('click', movePiece);
+                } else {
+                    // 为非空块添加图片背景
+                    pieceElement.classList.remove('empty');
+                    
+                    const row = Math.floor(piece / size);
+                    const col = piece % size;
+                    
+                    // 计算背景图片的位置
+                    const bgX = col * 100 / (size - 1);
+                    const bgY = row * 100 / (size - 1);
+                    
+                    // 设置背景图片
+                    pieceElement.style.backgroundImage = `url('${gameData.puzzle.imageUrl}')`;
+                    pieceElement.style.backgroundSize = `${size * 100}% ${size * 100}%`;
+                    pieceElement.style.backgroundPosition = `${bgX}% ${bgY}%`;
+                    
+                    // 添加点击事件
+                    pieceElement.addEventListener('click', () => movePiece(index));
+                }
+            });
+        }
+
+        // 检查是否相邻
+        function isAdjacent(index1, index2, size) {
+            const row1 = Math.floor(index1 / size);
+            const col1 = index1 % size;
+            const row2 = Math.floor(index2 / size);
+            const col2 = index2 % size;
+
+            return (
+                (Math.abs(row1 - row2) === 1 && col1 === col2) ||
+                (Math.abs(col1 - col2) === 1 && row1 === row2)
+            );
+        }
+
+        // 检查拼图是否完成
+        function isPuzzleComplete() {
+            for (let i = 0; i < gameData.puzzle.pieces.length; i++) {
+                if (gameData.puzzle.pieces[i] !== gameData.puzzle.correctOrder[i]) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        // 重置拼图
+        function resetPuzzle() {
+            setupPuzzle();
+        }
+
+        // 返回欢迎页面
+        function backToWelcome() {
+            videoScreen.classList.add('hidden');
+            welcomeScreen.classList.remove('hidden');
+            // 停止视频播放
+            rewardVideo.pause();
+            rewardVideo.currentTime = 0;
+        }
+
+        // 页面加载完成后初始化
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+
+</html>
